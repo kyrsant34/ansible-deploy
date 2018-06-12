@@ -1,0 +1,20 @@
+---
+
+- name: Copy host nginx-conf
+  template:
+    src: '../templates/host-nginx.conf.j2'
+    dest: '/etc/nginx/sites-available/{{ USER }}.conf'
+    owner: 'root'
+    group: 'root'
+    mode: 0644
+- name: Create symlink to nginx conf
+  file:
+    src: '/etc/nginx/sites-available/{{ USER }}.conf'
+    dest: '/etc/nginx/sites-enabled/{{ USER }}.conf'
+    state: link
+    validate: "nginx -t -c %s"
+- name: Reload nginx
+  service:
+    name: nginx
+    state: reloaded
+

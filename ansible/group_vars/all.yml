@@ -1,0 +1,38 @@
+---
+
+projects:
+  registry: harbor.xxx.ru:443
+  my-project:
+    registry:
+      username: user
+      password: pass
+    roles:
+      develop:
+        has_apps_volume: true
+        port: 8012
+      test:
+        has_apps_volume: true
+        port: 8013
+      stage:
+        has_apps_volume: false
+        port: 8014
+      prod:
+        has_apps_volume: false
+        host: prod.host.ru
+        port: 8000
+    repos:
+      - name: my-project
+        repo: git@github.com:kyrsant34/my-project.git
+        branch: develop
+        location: ../../projects/my-project/app
+      - name: my-project-ui
+        repo: git@github.com:kyrsant34/my-project-ui.git
+        branch: develop
+        location: ../../projects/my-project-ui/app
+    dockers:
+      - image: my-project
+        dockerfile: ../../projects/my-project/Dockerfile
+        context_root: ../../projects/my-project
+      - image: my-project-ui
+        dockerfile: ../../projects/my-project-ui/Dockerfile
+        context_root: ../../projects/my-project-ui

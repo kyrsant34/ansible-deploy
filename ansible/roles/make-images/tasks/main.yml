@@ -1,0 +1,3 @@
+- name: Build Images
+  shell: docker build -f {{item.dockerfile}} -t '{{ projects.registry }}/{{ PROJECT }}/{{ item.image }}:{{TAG}}' {{item.context_root}}
+  with_items: '{{ projects[PROJECT].dockers }}'

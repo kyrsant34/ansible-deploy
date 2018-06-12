@@ -1,0 +1,9 @@
+---
+
+- name: User Presence
+  user:
+    name: '{{ USER }}'
+    groups: docker
+    append: yes
+- name: Make permissions .ssh/id_rsa
+  shell: chmod 400 /home/{{ USER }}/.ssh/id_rsa

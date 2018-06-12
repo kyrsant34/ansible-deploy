@@ -1,0 +1,5 @@
+---
+
+- name: Push Images
+  command: docker push {{ projects.registry }}/{{ PROJECT }}/{{ item.image }}:{{TAG}}
+  with_items: '{{ projects[PROJECT].dockers }}'

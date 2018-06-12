@@ -1,0 +1,9 @@
+---
+
+- name: Clone repositories
+  git:
+    repo: '{{ item.repo }}'
+    dest: '{{ item.location }}'
+    version: '{% if BRANCH %}{{ BRANCH }}{% else %}{{ item.branch }}{% endif %}'
+    recursive: yes
+  with_items: '{{ projects[PROJECT].repos }}'

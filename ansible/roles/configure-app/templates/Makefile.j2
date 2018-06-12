@@ -1,0 +1,70 @@
+PROJECT_NAME := {{ PROJECT }}-{{ ROLE }}
+COMPOSE_FILE := ./docker/docker-compose.yml
+DOCKER_REGISTRY := {{ projects.registry }}
+DOCKER_USER := {{ projects[PROJECT].registry.username }}
+DOCKER_PASSWORD := {{ projects[PROJECT].registry.password }}
+
+
+.PHONY: login logout pull start_db configure start status stop recover_data backup_all
+
+login:
+	${INFO} "Logging into Docker registry $(DOCKER_REGISTRY)..."
+	@ docker login -u $(DOCKER_USER) -p $(DOCKER_PASSWORD) $(DOCKER_REGISTRY)
+	${INFO} "Logged into Docker registry $(DOCKER_REGISTRY)"
+
+logout:
+	${INFO} "Logging out of Docker registry $(DOCKER_REGISTRY)..."
+	@ docker logout $(DOCKER_REGISTRY)
+	${INFO} "Logged out of Docker registry $(DOCKER_REGISTRY)"
+
+pull:
+	${INFO} "Pulling project..."
+	@ docker-compose -p $(PROJECT_NAME) -f $(COMPOSE_FILE) pull
+	${INFO} "Done pulling project"
+
+start_db:
+	${INFO} "Starting db..."
+	@ docker volume create --name=${PROJECT_NAME}-mysqldata
+	@ docker-compose -p $(PROJECT_NAME) -f $(COMPOSE_FILE) up -d $(PROJECT_NAME)-db
+	@ sleep 15
+	${INFO} "Configuring db..."
+	@ echo 'create database if not exists `my-project` character set utf8 collate utf8_general_ci;' | docker exec -i $$(docker-compose -p ${PROJECT_NAME} -f ${COMPOSE_FILE} ps -q ${PROJECT_NAME}-db) mysql -uroot -p123
+	${INFO} "Db started"
+
+configure:
+	${INFO} "Collecting static..."
+	@ docker-compose -p $(PROJECT_NAME) -f $(COMPOSE_FILE) run --rm --entrypoint "python" $(PROJECT_NAME)-my-project-app manage.py collectstatic --noinput
+	${INFO} "Migrating db..."
+	@ docker-compose -p $(PROJECT_NAME) -f $(COMPOSE_FILE) run --rm --entrypoint "python" $(PROJECT_NAME)-my-project-app manage.py migrate --merge --no-initial-data
+	${INFO} "Done configuring project"
+
+start:
+	${INFO} "Running project..."
+	@ docker-compose -p $(PROJECT_NAME) -f $(COMPOSE_FILE) up -d
+	${INFO} "Project successfully started..."
+
+status:
+	@ docker-compose -p $(PROJECT_NAME) -f $(COMPOSE_FILE) ps
+
+stop:
+	${INFO} "Stopping project..."
+	@ docker-compose -p $(PROJECT_NAME) -f $(COMPOSE_FILE) down
+
+recover_data:
+	${INFO} "Start recovering data..."
+	@ gunzip < ~/backups/$(PROJECT_NAME).my-project.sql.gz | docker exec -i $$(docker-compose -p ${PROJECT_NAME} -f ${COMPOSE_FILE}  ps -q ${PROJECT_NAME}-db)  /usr/bin/mysql -u root --password=123 eosago-my-project
+	${INFO} "Done recovering data"
+
+backup_all:
+	${INFO} "Start dumping data..."
+	@ docker exec $(PROJECT_NAME)-db /usr/bin/mysqldump -u root --password=123 my-project | gzip > ~/backups/$(PROJECT_NAME).my-project_`date +%F`.sql.gz
+	@ gzip ~/backups/$(PROJECT_NAME).media_storage.my-project.sql.gz
+	${INFO} "Done dumping data"
+
+YELLOW := "\e[1;33m"
+NC := "\e[0m"
+
+INFO := @bash -c '\
+    printf $(YELLOW); \
+    echo "=> $$1"; \
+    printf $(NC)' VALUE

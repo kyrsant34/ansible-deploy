@@ -1,0 +1,51 @@
+---
+
+- name: Copy docker-compose
+  template:
+    src: '../templates/docker-compose.yml.j2'
+    dest: '/home/{{ USER }}/docker/docker-compose.yml'
+    owner: '{{ USER }}'
+    group: '{{ USER }}'
+    mode: 0644
+- name: Create mysqldata volume
+  shell: docker volume create --name={{ USER }}-mysqldata
+- name: Copy nginx-conf
+  template:
+    src: '../templates/my-project.conf.j2'
+    dest: '/home/{{ USER }}/docker/nginx/sites-enabled/my-project.conf'
+    owner: '{{ USER }}'
+    group: '{{ USER }}'
+    mode: 0644
+- name: Copy Makefile
+  template:
+    src: '../templates/Makefile.j2'
+    dest: '/home/{{ USER }}/Makefile'
+    owner: '{{ USER }}'
+    group: '{{ USER }}'
+    mode: 0644
+- name: Login to Private Repository
+  make:
+    chdir: '/home/{{ USER }}/'
+    target: login
+- name: Pull images
+  make:
+    chdir: '/home/{{ USER }}/'
+    target: pull
+- name: Make volume directories
+  command: sudo -H -u {{ USER }} bash -c 'git clone -b {{ BRANCH }} {{ item.repo }} {{ item.name }}/app'
+  args:
+    chdir: '/home/{{ USER }}/docker/'
+  with_items: '{{ projects[PROJECT].repos }}'
+  when: projects[PROJECT].roles[ROLE].has_apps_volume|bool == true
+- name: Copy local.py to volumes
+  copy:
+    src: '../templates/docker-compose.yml.j2'
+    dest: '/home/{{ USER }}/docker/docker-compose.yml'
+    owner: '{{ USER }}'
+    group: '{{ USER }}'
+    mode: 0644
+  when: projects[PROJECT].roles[ROLE].has_apps_volume|bool == true
+- name: Collect static and apply migrations
+  make:
+    chdir: '/home/{{ USER }}/'
+    target: configure

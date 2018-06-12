@@ -1,0 +1,14 @@
+---
+
+- name: Deploy
+  hosts: all
+  vars:
+    USER: "{{ PROJECT }}-{{ ROLE }}"
+    HOST: '{% if ROLE == "prod" %}{{projects[PROJECT].roles.prod.host}}{% else %}{{ PROJECT }}.{{ ROLE }}.xxx.ru{% endif %}'
+  roles:
+    - debug-input-args
+    - create-user
+    - configure-app
+    - configure-host-nginx
+    - run
+

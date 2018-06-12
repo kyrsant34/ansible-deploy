@@ -1,0 +1,12 @@
+---
+
+- name: Clone repos
+  connection: local
+  hosts: localhost
+  vars:
+    USER: "{{ PROJECT }}-{{ ROLE }}"
+    HOST: '{% if ROLE == "prod" %}{{projects[PROJECT].roles.prod.host}}{% else %}{{ PROJECT }}.{{ ROLE }}.xxx.ru{% endif %}'
+  roles:
+    - debug-input-args
+    - clone-repos
+

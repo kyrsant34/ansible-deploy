@@ -1,0 +1,11 @@
+---
+
+- name: input args
+  debug:
+    msg: "{{ item }} = {{ hostvars[inventory_hostname][item] }}"
+  with_items:
+    - INVENTORY
+    - PROJECT
+    - BRANCH
+    - TAG
+  when: hostvars[inventory_hostname][item] is defined

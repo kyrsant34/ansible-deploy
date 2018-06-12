@@ -1,0 +1,10 @@
+---
+
+- name: Stop application
+  make:
+    chdir: '/home/{{ USER }}/'
+    target: stop
+- name: Start application
+  make:
+    chdir: '/home/{{ USER }}/'
+    target: start

@@ -1,0 +1,12 @@
+---
+
+- name: Make and push images
+  connection: local
+  hosts: localhost
+  vars:
+    HOST: '{% if ROLE == "prod" %}{{projects[PROJECT].roles.prod.host}}{% else %}{{ PROJECT }}.{{ ROLE }}.xxx.ru{% endif %}'
+  roles:
+    - debug-input-args
+    - make-images
+    - push-images
+

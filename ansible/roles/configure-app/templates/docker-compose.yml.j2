@@ -1,0 +1,263 @@
+version: '3'
+
+volumes:
+  {{ USER }}-mysqldata:
+    external: true
+  {{ USER }}-my-project-admin-static:
+    driver: local
+  {{ USER }}-my-project-management-static:
+    driver: local
+  {{ USER }}-my-project-tmp:
+    driver: local
+
+networks:
+  {{ USER }}-network:
+
+services:
+  {{ USER }}-db:
+    networks:
+      - {{ USER }}-network
+    image: mysql:latest
+    hostname: {{ USER }}-db
+    volumes:
+      - {{ USER }}-mysqldata:/var/lib/mysql
+    expose:
+      - "3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=123
+    command: 'mysqld --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci --max-allowed-packet=1073741824'
+
+  {{ USER }}-redis:
+    networks:
+      - {{ USER }}-network
+    image: redis:latest
+    hostname: {{ USER }}-redis
+    expose:
+      - "6379"
+
+  {{ USER }}-memcached:
+    networks:
+      - {{ USER }}-network
+    image: memcached:latest
+    hostname: {{ USER }}-memcached
+    expose:
+      - "11211"
+
+  {{ USER }}-my-project-app:
+    networks:
+      - {{ USER }}-network
+    image: {{ projects.registry }}/{{ PROJECT }}/my-project-calc:{{TAG}}
+    hostname: {{ USER }}-my-project-app
+    expose:
+      - "8000"
+    depends_on:
+      - {{ USER }}-db
+      - {{ USER }}-redis
+      - {{ USER }}-memcached
+    environment:
+      - DOCKER=True
+      - STATIC_ROOT=/opt/my-project/admin-static
+      - MEDIA_ROOT=/opt/my-project/media
+      - DATA_DIR=/opt/my-project/casco-data
+      - TMP_DIR=opt/my-project/tmp
+      - DATABASE_URL=mysql://root:123@{{ USER }}-db/{{ PROJECT }}
+      - DEBUG=True
+      - MEMCACHED_HOST={{ USER }}-memcached
+      - BROKER_URL=redis://{{ USER }}-redis:6379/1
+      - RQ_QUEUES_HOST={{ USER }}-redis
+      - HOST={{ HOST }}
+    volumes:
+      - {{ USER }}-my-project-admin-static:/opt/my-project/admin-static
+      - {{ USER }}-my-project-management-static:/opt/my-project/app/externals/ui/static
+      - {{ USER }}-my-project-tmp:/opt/my-project/tmp
+      - ./my-project/media:/opt/my-project/media
+      - ./my-project/casco-data:/opt/my-project/casco-data
+      - ./my-project/storage:/opt/my-project/app/storage
+{% if projects[PROJECT].roles[ROLE].has_apps_volume|bool == true %}
+      - ./my-project/app:/opt/my-project/app
+{% endif %}
+
+  {{ USER }}-my-project-celeryd:
+    networks:
+      - {{ USER }}-network
+    image: {{ projects.registry }}/{{ PROJECT }}/my-project-calc:{{TAG}}
+    depends_on:
+      - {{ USER }}-db
+      - {{ USER }}-redis
+      - {{ USER }}-memcached
+      - {{ USER }}-my-project-app
+    environment:
+      - DOCKER=True
+      - C_FORCE_ROOT=True
+      - DATA_DIR=/opt/my-project/casco-data
+      - STATIC_ROOT=/opt/my-project/admin-static
+      - MEDIA_ROOT=/opt/my-project/media
+      - TMP_DIR=opt/my-project/tmp
+      - DATABASE_URL=mysql://root:123@{{ USER }}-db/{{ PROJECT }}
+      - DEBUG=True
+      - MEMCACHED_HOST={{ USER }}-memcached
+      - BROKER_URL=redis://{{ USER }}-redis:6379/1
+      - RQ_QUEUES_HOST={{ USER }}-redis
+      - HOST={{ HOST }}
+    entrypoint: 'python manage.py celeryd  -E  --loglevel=INFO --logfile=/opt/my-project/tmp/celeryd.log'
+    volumes:
+      - {{ USER }}-my-project-admin-static:/opt/my-project/admin-static
+      - {{ USER }}-my-project-management-static:/opt/my-project/app/externals/ui/static
+      - {{ USER }}-my-project-tmp:/opt/my-project/tmp
+      - ./my-project/media:/opt/my-project/media
+      - ./my-project/casco-data:/opt/my-project/casco-data
+      - ./my-project/storage:/opt/my-project/app/storage
+{% if projects[PROJECT].roles[ROLE].has_apps_volume|bool == true %}
+      - ./my-project/app:/opt/my-project/app
+{% endif %}
+
+  {{ USER }}-my-project-celerycam:
+    networks:
+      - {{ USER }}-network
+    image: {{ projects.registry }}/{{ PROJECT }}/my-project-calc:{{TAG}}
+    depends_on:
+      - {{ USER }}-db
+      - {{ USER }}-redis
+      - {{ USER }}-memcached
+      - {{ USER }}-my-project-app
+    environment:
+      - DOCKER=True
+      - STATIC_ROOT=/opt/my-project/admin-static
+      - MEDIA_ROOT=/opt/my-project/media
+      - DATA_DIR=/opt/my-project/casco-data
+      - TMP_DIR=opt/my-project/tmp
+      - DATABASE_URL=mysql://root:123@{{ USER }}-db/{{ PROJECT }}
+      - DEBUG=True
+      - MEMCACHED_HOST={{ USER }}-memcached
+      - BROKER_URL=redis://{{ USER }}-redis:6379/1
+      - RQ_QUEUES_HOST={{ USER }}-redis
+      - HOST={{ HOST }}
+    entrypoint: 'python manage.py celerycam --pidfile=/opt/my-project/tmp/celerycam5.pid --loglevel=INFO --logfile=/opt/my-project/tmp/celerycam.log'
+    volumes:
+      - {{ USER }}-my-project-admin-static:/opt/my-project/admin-static
+      - {{ USER }}-my-project-management-static:/opt/my-project/app/externals/ui/static
+      - {{ USER }}-my-project-tmp:/opt/my-project/tmp
+      - ./my-project/media:/opt/my-project/media
+      - ./my-project/casco-data:/opt/my-project/casco-data
+      - ./my-project/storage:/opt/my-project/app/storage
+{% if projects[PROJECT].roles[ROLE].has_apps_volume|bool == true %}
+      - ./my-project/app:/opt/my-project/app
+{% endif %}
+
+  {{ USER }}-my-project-celerybeat:
+    networks:
+      - {{ USER }}-network
+    image: {{ projects.registry }}/{{ PROJECT }}/my-project-calc:{{TAG}}
+    depends_on:
+      - {{ USER }}-db
+      - {{ USER }}-redis
+      - {{ USER }}-memcached
+      - {{ USER }}-my-project-app
+    environment:
+      - DOCKER=True
+      - STATIC_ROOT=/opt/my-project/admin-static
+      - MEDIA_ROOT=/opt/my-project/media
+      - DATA_DIR=/opt/my-project/casco-data
+      - TMP_DIR=opt/my-project/tmp
+      - DATABASE_URL=mysql://root:123@{{ USER }}-db/{{ PROJECT }}
+      - DEBUG=True
+      - MEMCACHED_HOST={{ USER }}-memcached
+      - BROKER_URL=redis://{{ USER }}-redis:6379/1
+      - RQ_QUEUES_HOST={{ USER }}-redis
+      - HOST={{ HOST }}
+    entrypoint: 'python manage.py celerybeat  --loglevel=INFO --logfile=/opt/my-project/tmp/celerybeat.log'
+    volumes:
+      - {{ USER }}-my-project-admin-static:/opt/my-project/admin-static
+      - {{ USER }}-my-project-management-static:/opt/my-project/app/externals/ui/static
+      - {{ USER }}-my-project-tmp:/opt/my-project/tmp
+      - ./my-project/media:/opt/my-project/media
+      - ./my-project/casco-data:/opt/my-project/casco-data
+      - ./my-project/storage:/opt/my-project/app/storage
+{% if projects[PROJECT].roles[ROLE].has_apps_volume|bool == true %}
+      - ./my-project/app:/opt/my-project/app
+{% endif %}
+
+  {{ USER }}-my-project-rqworker:
+    networks:
+      - {{ USER }}-network
+    image: {{ projects.registry }}/{{ PROJECT }}/my-project-calc:{{TAG}}
+    depends_on:
+      - {{ USER }}-db
+      - {{ USER }}-redis
+      - {{ USER }}-memcached
+      - {{ USER }}-my-project-app
+    environment:
+      - DOCKER=True
+      - STATIC_ROOT=/opt/my-project/admin-static
+      - MEDIA_ROOT=/opt/my-project/media
+      - TMP_DIR=opt/my-project/tmp
+      - DATA_DIR=/opt/my-project/casco-data
+      - DATABASE_URL=mysql://root:123@{{ USER }}-db/{{ PROJECT }}
+      - DEBUG=True
+      - MEMCACHED_HOST={{ USER }}-memcached
+      - BROKER_URL=redis://{{ USER }}-redis:6379/1
+      - RQ_QUEUES_HOST={{ USER }}-redis
+      - HOST={{ HOST }}
+    entrypoint: 'python manage.py rqworker default'
+    volumes:
+      - {{ USER }}-my-project-admin-static:/opt/my-project/admin-static
+      - {{ USER }}-my-project-management-static:/opt/my-project/app/externals/ui/static
+      - {{ USER }}-my-project-tmp:/opt/my-project/tmp
+      - ./my-project/casco-data:/opt/my-project/casco-data
+      - ./my-project/media:/opt/my-project/media
+      - ./my-project/storage:/opt/my-project/app/storage
+{% if projects[PROJECT].roles[ROLE].has_apps_volume|bool == true %}
+      - ./my-project/app:/opt/my-project/app
+{% endif %}
+
+  {{ USER }}-my-project-rqscheduler:
+    networks:
+      - {{ USER }}-network
+    image: {{ projects.registry }}/{{ PROJECT }}/my-project-calc:{{TAG}}
+    depends_on:
+      - {{ USER }}-db
+      - {{ USER }}-redis
+      - {{ USER }}-memcached
+      - {{ USER }}-my-project-app
+    environment:
+      - DOCKER=True
+      - STATIC_ROOT=/opt/my-project/admin-static
+      - MEDIA_ROOT=/opt/my-project/media
+      - DATA_DIR=/opt/my-project/casco-data
+      - TMP_DIR=opt/my-project/tmp
+      - DATABASE_URL=mysql://root:123@{{ USER }}-db/{{ PROJECT }}
+      - DEBUG=True
+      - MEMCACHED_HOST={{ USER }}-memcached
+      - BROKER_URL=redis://{{ USER }}-redis:6379/1
+      - RQ_QUEUES_HOST={{ USER }}-redis
+      - HOST={{ HOST }}
+    entrypoint: 'python manage.py rqscheduler default'
+    volumes:
+      - {{ USER }}-my-project-admin-static:/opt/my-project/admin-static
+      - {{ USER }}-my-project-management-static:/opt/my-project/app/externals/ui/static
+      - {{ USER }}-my-project-tmp:/opt/my-project/tmp
+      - ./my-project/media:/opt/my-project/media
+      - ./my-project/casco-data:/opt/my-project/casco-data
+      - ./my-project/storage:/opt/my-project/app/storage
+{% if projects[PROJECT].roles[ROLE].has_apps_volume|bool == true %}
+      - ./my-project/app:/opt/my-project/app
+{% endif %}
+
+  {{ USER }}-my-project-ui:
+    networks:
+      - {{ USER }}-network
+    image: {{ projects.registry }}/{{ PROJECT }}/my-project-ui:{{TAG}}
+    hostname: {{ USER }}-my-project-ui
+    ports:
+      - "{{ projects[PROJECT].roles[ROLE].port }}:80"
+    volumes:
+      - {{ USER }}-my-project-admin-static:/opt/my-project-ui/admin-static
+      - {{ USER }}-my-project-management-static:/opt/my-project-ui/management-static
+      - {{ USER }}-my-project-tmp:/opt/my-project-ui/tmp
+      - ./nginx/sites-enabled:/etc/nginx/conf.d
+      - ./my-project/media:/opt/my-project-ui/media
+{% if projects[PROJECT].roles[ROLE].has_apps_volume|bool == true %}
+      - ./my-project-ui/app:/opt/my-project-ui/app
+{% endif %}
+    depends_on:
+      - {{ USER }}-my-project-app

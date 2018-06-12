@@ -1,0 +1,64 @@
+upstream my-project {
+    server {{ USER }}-my-project-app:8000;
+}
+
+server {
+    server_name {{ HOST }};
+
+    listen 80;
+
+    access_log /opt/my-project-ui/log/access.log;
+    error_log /opt/my-project-ui/log/error.log;
+
+    # frontend static
+    location ~ ^/static/(.*)$ {
+        alias /opt/my-project-ui/app/static/$1;
+    }
+
+    # frontend img
+    location /img {
+        alias /opt/my-project-ui/app/static/img;
+    }
+
+    # backend static
+    location /admin-static/ {
+        alias /opt/my-project-ui/admin-static/;
+    }
+
+    # backend media
+    location /media/ {
+        alias /opt/my-project-ui/media/;
+    }
+
+    # backend storage
+    location /storage/ {
+        alias /opt/my-project-ui/storage/;
+    }
+
+    # backend api
+    location / {
+        proxy_pass  http://my-project;
+        proxy_set_header HOST $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_connect_timeout       300;
+        proxy_send_timeout          300;
+        proxy_read_timeout          300;
+        send_timeout                300;
+    }
+
+    location ~ ^/(css|js) {
+        root /opt/my-project-ui;
+        try_files /app/static$uri /management-static$uri;
+    }
+
+    location ~ ^/(config.js|index.html) {
+        root /opt/my-project-ui/app/static/my-project;
+    }
+
+    location = / {
+        alias /opt/my-project-ui/app/static/my-project/;
+    }
+
+}
